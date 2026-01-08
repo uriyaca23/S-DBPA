@@ -131,12 +131,50 @@ ACADEMIC_CSS = """
     mjx-container {
         font-size: 110% !important;
     }
+    .pdf-btn {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background-color: #333;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+        font-family: sans-serif;
+        font-size: 14px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        transition: background-color 0.3s;
+        z-index: 1000;
+    }
+    .pdf-btn:hover {
+        background-color: #555;
+    }
+    
+    @media print {
+        body {
+            background-color: white;
+            margin: 0;
+            padding: 0;
+        }
+        .paper-container {
+            box-shadow: none;
+            border: none;
+            margin: 0 auto;
+            padding: 0;
+            width: 100%;
+            max-width: 100%;
+        }
+        .pdf-btn {
+            display: none;
+        }
+    }
 </style>
 """
 
 MATHJAX_SCRIPT = """
 <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 <script>
   window.MathJax = {
     tex: {
@@ -149,6 +187,14 @@ MATHJAX_SCRIPT = """
       processHtmlClass: 'tex2jax_process'
     }
   };
+</script>
+"""
+
+PDF_SCRIPT = """
+<script>
+    function savePDF() {
+        window.print();
+    }
 </script>
 """
 
@@ -262,8 +308,10 @@ def generate_html_report(results):
         <title>S-DBPA Final Report</title>
         {ACADEMIC_CSS}
         {MATHJAX_SCRIPT}
+        {PDF_SCRIPT}
     </head>
     <body>
+        <button onclick="savePDF()" class="pdf-btn">Print / Save as PDF</button>
         <div class="paper-container">
             <h1>Controlled Semantic Sampling: A Robust Auditing Methodology (S-DBPA)</h1>
             <div class="authors">Uriya Cohen-Eliya</div>
