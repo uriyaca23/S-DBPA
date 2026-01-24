@@ -12,7 +12,6 @@ import formulas_omml
 RESULTS_FILE = "results/robustness_results.json"
 PLOT_FILE = "results/robustness_comparison.png"
 JSD_PLOT_FILE = "results/jsd_comparison.png"
-# Fixed filename as requested
 DOCX_FILE = "results/S-DBPA_Final_Report.docx"
 
 def set_font(run, font_name='Times New Roman', font_size=12, bold=False, italic=False):
@@ -38,34 +37,31 @@ def add_paragraph(doc, text, align=WD_ALIGN_PARAGRAPH.JUSTIFY):
 
 def add_omml_equation(doc, omml_string):
     """Inserts a native Word equation paragraph."""
-    # We append the XML element directly to the document body to avoid w:p nesting issues
-    # if the omml_string is a block-level math paragraph (m:oMathPara).
     xml_elem = parse_xml(omml_string)
-    if xml_elem.tag.endswith('oMathPara'):
-        doc._element.body.append(xml_elem)
-        return xml_elem 
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    if xml_elem.tag.endswith('oMath'):
+         p._element.append(xml_elem)
+    elif xml_elem.tag.endswith('oMathPara'):
+         for child in xml_elem:
+             p._element.append(child)
     else:
-        # If it's just m:oMath or similar, wrap in paragraph
-        p = doc.add_paragraph()
         p._element.append(xml_elem)
-        return p
+        
+    return p
 
 def add_text_with_math(paragraph, content_list):
     """
     Appends text and inline math to a paragraph.
-    content_list: list of strings. If string matches a key in formulas_omml.INLINE_MATH,
-                  it is inserted as an equation. Otherwise, valid text.
     """
     for item in content_list:
         if item in formulas_omml.INLINE_MATH:
-            # It's a math key, insert OMML
             omml = formulas_omml.INLINE_MATH[item]
             paragraph._element.append(parse_xml(omml))
         elif item.startswith("<m:oMath"):
-             # Direct OMML string (legacy from list logic)
              paragraph._element.append(parse_xml(item))
         else:
-            # Regular text
             run = paragraph.add_run(item)
             set_font(run)
 
@@ -185,11 +181,10 @@ def main():
         "Let ", "f_theta", " be the LLM under audit. Let ", "p", " be a base prompt. S-DBPA formalized this sampling stage as follows:"
     ])
 
-    # --- BLOCK EQUATION 1: Sampling Steps SPLIT ---
     for part in formulas_omml.SAMPLING_STEPS_PARTS:
         add_omml_equation(doc, part)
 
-    # --- 2.1 Proof of Exchangeability ---
+    # --- 2.1 Proof ---
     doc.add_heading('2.1 Proof of Exchangeability Under Null Hypothesis', level=2)
     p_ex = doc.add_paragraph()
     p_ex.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -223,7 +218,7 @@ def main():
         " (or a neutral equivalent), then both ", formulas_omml.PROOF_PARTS[6], " and ", formulas_omml.PROOF_PARTS[4], 
         " are i.i.d. samples from ", formulas_omml.PROOF_PARTS[7], ". ",
         "Therefore, the sequence of random variables (", formulas_omml.PROOF_PARTS[6], ", ", formulas_omml.PROOF_PARTS[4], 
-        ") is exchangeable. Consequently, the permutation p-value is exact. Q.E.D."
+        ") is exchangeable. Consequently, the permutation p-value is exact. ", "QED"
     ]
     add_text_with_math(p_proof, proof_content)
 
@@ -232,7 +227,7 @@ def main():
     p_just = doc.add_paragraph()
     p_just.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     add_text_with_math(p_just, [
-        "Standard DBPA estimates an effect size using the expectation of the distance metric. ",
+        "Standard DBPA estimates an effect size ", "omega_hat_p", " = E[D(r_p, r_ref)]. ", # Using omega_hat_p
         "This estimator has high variance with respect to ", "p", " due to token-level sensitivity. ",
         "S-DBPA estimates the expected effect over the semantic manifold:"
     ])
@@ -249,7 +244,6 @@ def main():
     doc.add_heading('2.3 Experimental Setup', level=2)
     add_paragraph(doc, "To validate our methodology, we utilized the following configuration:")
     
-    # Bullets
     b1 = doc.add_paragraph(style='List Bullet')
     set_font(b1.add_run("Sample Size: "), bold=True)
     add_text_with_math(b1, ["N_200", " independent samples per condition."])
@@ -276,7 +270,10 @@ def main():
 
     p_note = doc.add_paragraph()
     p_note.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    run_note = p_note.add_run("Note on Models: While the original DBPA framework utilized text-embedding-ada-002 for output distance measurements, we employed all-MiniLM-L6-v2 for both the semantic filtering and output embedding stages. This design choice was made to ensure a fully local, reproducible evaluation pipeline without dependencies on external proprietary APIs.")
+    # Matching HTML style: Note on Models is bold
+    run_note_title = p_note.add_run("Note on Models: ")
+    set_font(run_note_title, bold=True, italic=True, font_size=10)
+    run_note = p_note.add_run("While the original DBPA framework utilized text-embedding-ada-002 for output distance measurements, we employed all-MiniLM-L6-v2 for both the semantic filtering and output embedding stages. This design choice was made to ensure a fully local, reproducible evaluation pipeline without dependencies on external proprietary APIs.")
     set_font(run_note, italic=True, font_size=10)
 
     # --- 3. Results ---
@@ -287,7 +284,7 @@ def main():
         "as a robust metric should yield consistent p-values regardless of trivial phrasing differences."
     )
 
-    # --- 3.1 Experimental Procedure ---
+    # --- 3.1 Procedure ---
     doc.add_heading('3.1 Experimental Procedure', level=2)
     add_paragraph(doc, "We compared the standard DBPA baseline against our S-DBPA methodology using the following protocol:")
     
@@ -369,6 +366,9 @@ def main():
                 set_font(run, bold=True)
 
     set_cell(hdr_cells[0], text="Prompt Variation")
+    # Using omega_hat_p in table headers implies inline hat, but omega is effect size. 
+    # HTML used JSD (omega). Let's use regular omega here to be safe or omega hat? 
+    # HTML Header: <th>DBPA JSD ($\omega$)</th>. Just omega.
     set_cell(hdr_cells[1], math_list=["DBPA JSD (", "omega", ")"])
     set_cell(hdr_cells[2], text="DBPA P-Value")
     set_cell(hdr_cells[3], math_list=["S-DBPA JSD (", "omega", ")"])
@@ -388,8 +388,10 @@ def main():
         
         if p_sdbpa == 0:
             row[4].text = "< 0.001"
+            row[4].paragraphs[0].runs[0].font.bold = True
         else:
             row[4].text = f"{p_sdbpa:.4f}"
+            row[4].paragraphs[0].runs[0].font.bold = True
             
     # --- 4. Conclusion ---
     doc.add_heading('4. Conclusion', level=1)
