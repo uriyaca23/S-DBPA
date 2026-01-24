@@ -19,7 +19,6 @@ COS = "cos" # standard text function
 TILDE = "~"
 
 # --- Inline Math Registry ---
-# Dictionary mapping logical keys to their OMML XML representation strings.
 INLINE_MATH = {
     "P": wrap_inline('<m:r><m:t>P</m:t></m:r>'),
     "P_prime": wrap_inline('<m:sSup><m:e><m:r><m:t>P</m:t></m:r></m:e><m:sup><m:r><m:t>\'</m:t></m:r></m:sup></m:sSup>'),
@@ -43,13 +42,11 @@ INLINE_MATH = {
 
 # --- Block Equations ---
 
-# 1. The Sampling Steps Block
-SAMPLING_STEPS_OMML = """
-<m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
-  <m:oMath>
-    <m:eqArr>
-      <m:e>
-        <!-- Line 1: P_raw = {p'_1, ..., p'_N} ~ Generator(p) -->
+# 1. The Sampling Steps Block - SPLIT into 4 distinct separate paragraphs/equations.
+# This avoids any layout aliasing in Word.
+SAMPLING_STEPS_PARTS = [
+    # Line 1: 1. P_raw = {p'_1, ..., p'_N} ~ Generator(p)
+"""<m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:oMath>
         <m:r><m:t>1. </m:t></m:r>
         <m:sSub><m:e><m:r><m:t>P</m:t></m:r></m:e><m:sub><m:r><m:t>raw</m:t></m:r></m:sub></m:sSub>
         <m:r><m:t> = {</m:t></m:r>
@@ -57,17 +54,19 @@ SAMPLING_STEPS_OMML = """
         <m:r><m:t>, ..., </m:t></m:r>
         <m:sSub><m:e><m:sSup><m:e><m:r><m:t>p</m:t></m:r></m:e><m:sup><m:r><m:t>'</m:t></m:r></m:sup></m:sSup></m:e><m:sub><m:r><m:t>N</m:t></m:r></m:sub></m:sSub>
         <m:r><m:t>} ~ Generator(p)</m:t></m:r>
-        
-        <!-- Line 2: P_sem = {x in P_raw | cos(psi(x), psi(p)) > tau} -->
-        <m:r><m:br/></m:r>
+</m:oMath></m:oMathPara>""",
+
+    # Line 2: 2. P_sem = {x in P_raw | cos(psi(x), psi(p)) > tau}
+"""<m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:oMath>
         <m:r><m:t>2. </m:t></m:r>
         <m:sSub><m:e><m:r><m:t>P</m:t></m:r></m:e><m:sub><m:r><m:t>sem</m:t></m:r></m:sub></m:sSub>
         <m:r><m:t> = {x &#8712; </m:t></m:r>
         <m:sSub><m:e><m:r><m:t>P</m:t></m:r></m:e><m:sub><m:r><m:t>raw</m:t></m:r></m:sub></m:sSub>
         <m:r><m:t> | cos(&#968;(x), &#968;(p)) > &#964;}</m:t></m:r>
-        
-        <!-- Line 3: forall p'_i in P_sem, r'_i ~ f_theta(p'_i) -->
-        <m:r><m:br/></m:r>
+</m:oMath></m:oMathPara>""",
+
+    # Line 3: 3. forall p'_i in P_sem, r'_i ~ f_theta(p'_i)
+"""<m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:oMath>
         <m:r><m:t>3. &#8704;</m:t></m:r>
         <m:sSub><m:e><m:sSup><m:e><m:r><m:t>p</m:t></m:r></m:e><m:sup><m:r><m:t>'</m:t></m:r></m:sup></m:sSup></m:e><m:sub><m:r><m:t>i</m:t></m:r></m:sub></m:sSub>
         <m:r><m:t> &#8712; </m:t></m:r>
@@ -79,19 +78,17 @@ SAMPLING_STEPS_OMML = """
         <m:r><m:t>(</m:t></m:r>
         <m:sSub><m:e><m:sSup><m:e><m:r><m:t>p</m:t></m:r></m:e><m:sup><m:r><m:t>'</m:t></m:r></m:sup></m:sSup></m:e><m:sub><m:r><m:t>i</m:t></m:r></m:sub></m:sSub>
         <m:r><m:t>)</m:t></m:r>
+</m:oMath></m:oMathPara>""",
 
-        <!-- Line 4: Statistic: T(...) -->
-        <m:r><m:br/></m:r>
+    # Line 4: 4. Statistic: T({r'_i}, R_ref)
+"""<m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><m:oMath>
         <m:r><m:t>4. Statistic: T({</m:t></m:r>
         <m:sSub><m:e><m:sSup><m:e><m:r><m:t>r</m:t></m:r></m:e><m:sup><m:r><m:t>'</m:t></m:r></m:sup></m:sSup></m:e><m:sub><m:r><m:t>i</m:t></m:r></m:sub></m:sSub>
         <m:r><m:t>}, </m:t></m:r>
         <m:sSub><m:e><m:r><m:t>R</m:t></m:r></m:e><m:sub><m:r><m:t>ref</m:t></m:r></m:sub></m:sSub>
         <m:r><m:t>)</m:t></m:r>
-      </m:e>
-    </m:eqArr>
-  </m:oMath>
-</m:oMathPara>
-"""
+</m:oMath></m:oMathPara>"""
+]
 
 # Block: Robustness Formula
 ROBUSTNESS_OMML = """
@@ -127,7 +124,6 @@ ROBUSTNESS_OMML = """
 """
 
 # Theorem and Proof inline text replacements
-# These are lists of elements. If a string starts with <m:oMath, it's XML. Else plain text.
 THEOREM_1_PARTS = [
     wrap_inline('<m:r><m:t>S</m:t></m:r>'), # S
     wrap_inline('<m:sSub><m:e><m:r><m:t>p</m:t></m:r></m:e><m:sub><m:r><m:t>a</m:t></m:r></m:sub></m:sSub><m:r><m:t>, </m:t></m:r><m:sSub><m:e><m:r><m:t>p</m:t></m:r></m:e><m:sub><m:r><m:t>b</m:t></m:r></m:sub></m:sSub><m:r><m:t> &#8712; S</m:t></m:r>'), # p_a, p_b in S

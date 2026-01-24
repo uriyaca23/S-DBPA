@@ -12,7 +12,7 @@ import formulas_omml
 RESULTS_FILE = "results/robustness_results.json"
 PLOT_FILE = "results/robustness_comparison.png"
 JSD_PLOT_FILE = "results/jsd_comparison.png"
-DOCX_FILE = "results/S-DBPA_Final_Report_v5.docx"
+DOCX_FILE = "results/S-DBPA_Final_Report_v6.docx"
 
 def set_font(run, font_name='Times New Roman', font_size=12, bold=False, italic=False):
     run.font.name = font_name
@@ -38,8 +38,33 @@ def add_paragraph(doc, text, align=WD_ALIGN_PARAGRAPH.JUSTIFY):
 def add_omml_equation(doc, omml_string):
     """Inserts a native Word equation paragraph."""
     p = doc.add_paragraph()
-    p._element.append(parse_xml(omml_string))
-    return p
+    # Check if omml_string is already a paragraph xml (starting with <m:oMathPara)
+    # or just math content. If para, remove p before appending? 
+    # Actually python-docx add_paragraph creates a <w:p>. 
+    # If we append <m:oMathPara>, we might get nested paras or invalid XML if not careful.
+    # Safe way: append the *children* of the math string if it's a wrapper, or the element itself.
+    # Our strings in formulas_omml are <m:oMathPara>...</m:oMathPara>.
+    # So we should append that element directly to the document body? No, doc.add_paragraph creates a p.
+    # We want to replace that p's content or append to document directly.
+    
+    # Better approach for python-docx interaction with full XML strings:
+    # 1. Parse the string to an element.
+    # 2. Append to the document's body element (doc._element.body).
+    # 3. Don't use doc.add_paragraph() which creates an empty <w:p> we'd have to delete.
+    
+    # However, to keep it simple with existing code flow (returning p), let's look at structure.
+    # <w:p> <m:oMath> ... </m:oMath> </w:p> is valid.
+    # <m:oMathPara> is a peer of <w:p>.
+    
+    xml_elem = parse_xml(omml_string)
+    if xml_elem.tag.endswith('oMathPara'):
+        # It is a paragraph-level math element. Append directly to body.
+        doc._element.body.append(xml_elem)
+        return xml_elem # specific return, not a Paragraph obj
+    else:
+        # It is inline math <m:oMath>, put inside paragraph.
+        p._element.append(xml_elem)
+        return p
 
 def add_text_with_math(paragraph, content_list):
     """
@@ -135,7 +160,7 @@ def main():
     s1 = doc.add_paragraph(style='List Number')
     set_font(s1.add_run("Step 1: Semantic Neighborhood Generation "), bold=True)
     add_text_with_math(s1, ["(", "P_raw", ")", "\n"])
-    s1.runs[1].font.bold = True # Bold the parens/newline
+    s1.runs[1].font.bold = True
     
     add_text_with_math(s1, [
         "We first explore the \"semantic manifold\" of the base prompt by generating a large set of candidate variations using a paraphrasing LLM. "
@@ -176,7 +201,10 @@ def main():
         "Let ", "f_theta", " be the LLM under audit. Let ", "p", " be a base prompt. S-DBPA formalized this sampling stage as follows:"
     ])
 
-    add_omml_equation(doc, formulas_omml.SAMPLING_STEPS_OMML)
+    # --- BLOCK EQUATION 1: Sampling Steps SPLIT ---
+    # We iterate over the 4 parts now.
+    for part in formulas_omml.SAMPLING_STEPS_PARTS:
+        add_omml_equation(doc, part)
 
     # --- 2.1 Proof of Exchangeability ---
     doc.add_heading('2.1 Proof of Exchangeability Under Null Hypothesis', level=2)
@@ -192,16 +220,7 @@ def main():
     set_font(p_thm.add_run("Theorem 1 (Semantic Exchangeability): "), bold=True)
     
     # Theorem Text
-    # formulas_omml.THEOREM_1_PARTS contains pre-wrapped OMML strings
-    p_thm_text = doc.add_paragraph()
-    p_thm_text.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    # Merging logic into one paragraph for flow
-    # Since add_text_with_math handles OMML strings too, we can mix.
-    # Note: Theorem usually italicized.
-    
-    # We construct the theorem list manually to control formatting if needed, 
-    # but here we just append to the heading paragraph or a new one. Let's append to new one.
-    
+    # Manually constructed list to ensure all symbols are caught from formulas_omml.THEOREM_1_PARTS
     thm_content = [
         "Let ", formulas_omml.THEOREM_1_PARTS[0], " be a set of semantically equivalent prompts such that for any ",
         formulas_omml.THEOREM_1_PARTS[1], ", the conditional distribution of responses ",
@@ -210,7 +229,6 @@ def main():
         " is invariant under permutation with the reference set ", formulas_omml.THEOREM_1_PARTS[4], "."
     ]
     add_text_with_math(p_thm, thm_content)
-    # Ideally iterate and set italics for text runs, but default is standard. Text is fine.
 
     # Proof
     p_proof = doc.add_paragraph()
@@ -233,8 +251,6 @@ def main():
     p_just = doc.add_paragraph()
     p_just.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     add_text_with_math(p_just, [
-        "Standard DBPA estimates an effect size ", "omega_p", " (approx)", # Note: I didn't define omega_p, just omega.
-        # Let's fix text:
         "Standard DBPA estimates an effect size using the expectation of the distance metric. ",
         "This estimator has high variance with respect to ", "p", " due to token-level sensitivity. ",
         "S-DBPA estimates the expected effect over the semantic manifold:"
@@ -245,8 +261,9 @@ def main():
     p_law = doc.add_paragraph()
     p_law.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
     add_text_with_math(p_law, [
-        "By the Law of Large Numbers, as |", "S", "| tends to infinity, the variance of this estimator decreases, providing a stable audit metric."
-    ]) # Using S for set size S
+        "By the Law of Large Numbers, as |", formulas_omml.THEOREM_1_PARTS[0], "| tends to infinity, the variance of this estimator decreases, providing a stable audit metric."
+    ]) 
+    # Use symbol S from Theorem parts (formulas_omml.THEOREM_1_PARTS[0]) for consistency.
 
     # --- 2.3 Experimental Setup ---
     doc.add_heading('2.3 Experimental Setup', level=2)
@@ -303,8 +320,6 @@ def main():
     set_font(p2.add_run("Manual Variations: "), bold=True)
     add_text_with_math(p2, ["We manually created 3 adversarial variations to simulate prompt engineering:"])
     
-    # Sub bullets
-    # Word doesn't do sub-bullets cleanly via python-docx styles easily, just indent manual
     v1 = doc.add_paragraph(style='List Bullet 2')
     add_text_with_math(v1, ["V_1", ": \"You are a skilled doctor.\""])
     v2 = doc.add_paragraph(style='List Bullet 2')
@@ -361,9 +376,6 @@ def main():
     table = doc.add_table(rows=1, cols=5)
     table.style = 'Table Grid'
     hdr_cells = table.rows[0].cells
-    
-    # Headers with symbol injection
-    # Can't do easily with cell.text assignment. Must clear and append paragraph.
     
     def set_cell(cell, text=None, math_list=None):
         p = cell.paragraphs[0]
