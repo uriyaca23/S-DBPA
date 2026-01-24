@@ -152,9 +152,13 @@ ACADEMIC_CSS = """
     }
     
     @media print {
+        @page {
+            size: auto;
+            margin: 0mm;
+        }
         body {
             background-color: white;
-            margin: 0;
+            margin: 20px;
             padding: 0;
         }
         .paper-container {
@@ -314,7 +318,7 @@ def generate_html_report(results):
         <button onclick="savePDF()" class="pdf-btn">Print / Save as PDF</button>
         <div class="paper-container">
             <h1>Controlled Semantic Sampling: A Robust Auditing Methodology (S-DBPA)</h1>
-            <div class="authors">Uriya Cohen-Eliya</div>
+            <div class="authors">Uriya Cohen-Eliya, Iggy Segev Gal, Yuval Vardi</div>
             
             <div class="abstract">
                 <span class="abstract-title">Abstract</span>
@@ -354,7 +358,7 @@ def generate_html_report(results):
                 </li>
                 <li>
                     <strong>Step 2: Semantic Filtering ($P_{{sem}}$)</strong><br>
-                    We apply a strict cosine similarity filter ($\tau=0.55$) using an embedding model ($\psi$) to retain only high-quality paraphrases.
+                    We apply a strict cosine similarity filter ($\tau=0.50$) using an embedding model ($\psi$) to retain only high-quality paraphrases.
                     <em>Rationale:</em> Generative models can hallucinate or drift. Filtering ensures $H_0$ validity by strictly enforcing semantic equivalence.
                 </li>
                 <li>
@@ -414,9 +418,15 @@ def generate_html_report(results):
                 <li><strong>Sample Size:</strong> $N=200$ independent samples per condition.</li>
                 <li><strong>Subject Model:</strong> <code>Qwen/Qwen2.5-1.5B-Instruct</code> (Simulated via HuggingFace Transformers).</li>
                 <li><strong>Paraphrasing Model:</strong> <code>Qwen/Qwen2.5-1.5B-Instruct</code> prompted to generate semantic variations.</li>
-                <li><strong>Semantic Filter:</strong> <code>sentence-transformers/all-MiniLM-L6-v2</code> using Cosine Similarity with a threshold of $\tau=0.55$.</li>
+                <li><strong>Semantic Filter:</strong> <code>sentence-transformers/all-MiniLM-L6-v2</code> using Cosine Similarity with a threshold of $\tau=0.50$.</li>
+                <li><strong>Output Embedding Model:</strong> <code>sentence-transformers/all-MiniLM-L6-v2</code> (used for calculating JSD).</li>
                 <li><strong>Statistic:</strong> Jensen-Shannon Divergence (JSD) between response embedding distributions.</li>
             </ul>
+            <p style="font-size: 0.9em; background-color: #f0f0f0; padding: 10px; border-left: 3px solid #555;">
+                <strong>Note on Models:</strong> While the original DBPA framework utilized <code>text-embedding-ada-002</code> for output distance measurements, 
+                we employed <code>all-MiniLM-L6-v2</code> for both the semantic filtering and output embedding stages. 
+                This design choice was made to ensure a fully local, reproducible evaluation pipeline without dependencies on external proprietary APIs.
+            </p>
 
             <h2>3. Experimental Results</h2>
             <p>
@@ -445,7 +455,7 @@ def generate_html_report(results):
                 <br>
                 <strong>1. Standard DBPA:</strong> We sampled $N=200$ responses directly from the prompt variation and compared them to the neutral reference.
                 <br>
-                <strong>2. S-DBPA (Ours):</strong> We generated a semantic neighborhood around the prompt variation, filtered for meaning ($\tau=0.55$), and then sampled $N=200$ responses from this neighborhood.
+                <strong>2. S-DBPA (Ours):</strong> We generated a semantic neighborhood around the prompt variation, filtered for meaning ($\tau=0.50$), and then sampled $N=200$ responses from this neighborhood.
             </p>
             
             <div class="figure">
