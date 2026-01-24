@@ -12,7 +12,8 @@ import formulas_omml
 RESULTS_FILE = "results/robustness_results.json"
 PLOT_FILE = "results/robustness_comparison.png"
 JSD_PLOT_FILE = "results/jsd_comparison.png"
-DOCX_FILE = "results/S-DBPA_Final_Report_v6.docx"
+# Fixed filename as requested
+DOCX_FILE = "results/S-DBPA_Final_Report.docx"
 
 def set_font(run, font_name='Times New Roman', font_size=12, bold=False, italic=False):
     run.font.name = font_name
@@ -37,32 +38,15 @@ def add_paragraph(doc, text, align=WD_ALIGN_PARAGRAPH.JUSTIFY):
 
 def add_omml_equation(doc, omml_string):
     """Inserts a native Word equation paragraph."""
-    p = doc.add_paragraph()
-    # Check if omml_string is already a paragraph xml (starting with <m:oMathPara)
-    # or just math content. If para, remove p before appending? 
-    # Actually python-docx add_paragraph creates a <w:p>. 
-    # If we append <m:oMathPara>, we might get nested paras or invalid XML if not careful.
-    # Safe way: append the *children* of the math string if it's a wrapper, or the element itself.
-    # Our strings in formulas_omml are <m:oMathPara>...</m:oMathPara>.
-    # So we should append that element directly to the document body? No, doc.add_paragraph creates a p.
-    # We want to replace that p's content or append to document directly.
-    
-    # Better approach for python-docx interaction with full XML strings:
-    # 1. Parse the string to an element.
-    # 2. Append to the document's body element (doc._element.body).
-    # 3. Don't use doc.add_paragraph() which creates an empty <w:p> we'd have to delete.
-    
-    # However, to keep it simple with existing code flow (returning p), let's look at structure.
-    # <w:p> <m:oMath> ... </m:oMath> </w:p> is valid.
-    # <m:oMathPara> is a peer of <w:p>.
-    
+    # We append the XML element directly to the document body to avoid w:p nesting issues
+    # if the omml_string is a block-level math paragraph (m:oMathPara).
     xml_elem = parse_xml(omml_string)
     if xml_elem.tag.endswith('oMathPara'):
-        # It is a paragraph-level math element. Append directly to body.
         doc._element.body.append(xml_elem)
-        return xml_elem # specific return, not a Paragraph obj
+        return xml_elem 
     else:
-        # It is inline math <m:oMath>, put inside paragraph.
+        # If it's just m:oMath or similar, wrap in paragraph
+        p = doc.add_paragraph()
         p._element.append(xml_elem)
         return p
 
@@ -202,7 +186,6 @@ def main():
     ])
 
     # --- BLOCK EQUATION 1: Sampling Steps SPLIT ---
-    # We iterate over the 4 parts now.
     for part in formulas_omml.SAMPLING_STEPS_PARTS:
         add_omml_equation(doc, part)
 
@@ -219,8 +202,6 @@ def main():
     p_thm = doc.add_paragraph()
     set_font(p_thm.add_run("Theorem 1 (Semantic Exchangeability): "), bold=True)
     
-    # Theorem Text
-    # Manually constructed list to ensure all symbols are caught from formulas_omml.THEOREM_1_PARTS
     thm_content = [
         "Let ", formulas_omml.THEOREM_1_PARTS[0], " be a set of semantically equivalent prompts such that for any ",
         formulas_omml.THEOREM_1_PARTS[1], ", the conditional distribution of responses ",
@@ -263,7 +244,6 @@ def main():
     add_text_with_math(p_law, [
         "By the Law of Large Numbers, as |", formulas_omml.THEOREM_1_PARTS[0], "| tends to infinity, the variance of this estimator decreases, providing a stable audit metric."
     ]) 
-    # Use symbol S from Theorem parts (formulas_omml.THEOREM_1_PARTS[0]) for consistency.
 
     # --- 2.3 Experimental Setup ---
     doc.add_heading('2.3 Experimental Setup', level=2)
