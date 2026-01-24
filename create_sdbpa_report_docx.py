@@ -13,7 +13,7 @@ RESULTS_FILE = "results/robustness_results.json"
 PLOT_FILE = "results/robustness_comparison.png"
 JSD_PLOT_FILE = "results/jsd_comparison.png"
 # Use a new filename to avoid lock issues
-DOCX_FILE = "results/S-DBPA_Final_Report_v3.docx"
+DOCX_FILE = "results/S-DBPA_Final_Report_v4.docx"
 
 def set_font(run, font_name='Times New Roman', font_size=12, bold=False, italic=False):
     run.font.name = font_name
